@@ -1,4 +1,5 @@
 from django.db import models
+from ec_accounts.models import EcAccountEntry
 
 class DirectMaterial(models.Model):
     name = models.CharField(max_length=50)
@@ -60,6 +61,7 @@ class Product(models.Model):
     cost_by_unit = models.IntegerField()
 
 class ProductItem(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.PROTECT)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    ec_acc_entry = models.ForeignKey(EcAccountEntry, on_delete=models.CASCADE)
     qty = models.IntegerField()
     total_price = models.IntegerField()
