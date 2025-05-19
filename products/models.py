@@ -60,8 +60,18 @@ class Product(models.Model):
     unit = models.CharField(max_length=10)
     cost_by_unit = models.IntegerField()
 
+    def __str__(self):
+        return self.name
+
 class ProductItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     ec_acc_entry = models.ForeignKey(EcAccountEntry, on_delete=models.CASCADE)
     qty = models.IntegerField()
-    total_price = models.IntegerField()
+
+    @property
+    def total_price(self):
+        return self.qty * self.product.cost_by_unit
+    
+    def total_price_display(self):
+        return f"${self.total_price:.2f}"
+

@@ -1,3 +1,5 @@
+import datetime
+
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -12,6 +14,7 @@ class EcAccount(models.Model):
 
 
 class DailyEntry(models.Model):
+    created = models.DateTimeField(default=datetime.datetime.now())
     employee = models.ForeignKey(
                 User,
                 on_delete=models.PROTECT,
@@ -19,9 +22,12 @@ class DailyEntry(models.Model):
                 )
     ec_account = models.ManyToManyField(EcAccount, through="EcAccountEntry")
 
+    def __str__(self) -> str:
+        return self.created.strftime("%d %B %Y %H:%M:%S %z")
+
 class EcAccountEntry(models.Model):
     daily_entry = models.ForeignKey(
-            EcAccount,
+            DailyEntry,
             on_delete=models.CASCADE,
             )
     ec_account = models.ForeignKey(
@@ -30,7 +36,7 @@ class EcAccountEntry(models.Model):
             )
     class AccountType(models.TextChoices):
         CREDIT = "CR", "Credit"
-        DEBTOR = "DE", "Debtor"
+        DEBTOR = "DE", "Debit"
 
     type = models.CharField(
             max_length=2,
@@ -40,5 +46,8 @@ class EcAccountEntry(models.Model):
 
     class Meta:
         constraints = [
-                models.UniqueConstraint( fields = [ "daily_entry", "ec_account" ], name = "unique_daily_account_entry")
+                models.UniqueConstraint( fields = [ "daily_entry", "ec_account", "type" ], name = "unique_daily_account_entry")
         ]
+
+    def __str__(self) -> str:
+        return str(self.ec_account) + " " + str(self.daily_entry)

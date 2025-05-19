@@ -7,4 +7,8 @@ admin.site.register( CostSheet )
 admin.site.register( CostSheetMaterial )
 admin.site.register( CostSheetLabor )
 admin.site.register( Product )
-admin.site.register( ProductItem )
+
+@admin.register( ProductItem )
+class ProductItemAdmin(admin.ModelAdmin):
+    readonly_fields = ("total_price",)
+    #list_display = ("name", "total_price")
