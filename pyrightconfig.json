@@ -1,5 +1,5 @@
 {
   "venv": ".venv",
   "venvPath": ".",
-  "extraPaths": ["./ec_management"]  // Add project directory to PYTHONPATH
+  "extraPaths": ["./ec_management"]
 }

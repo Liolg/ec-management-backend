@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-rh17_2cuh$5x=($e_ibg%5s#*lx74ykuwmcr+_ry957idus#un
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["localhost"]
 
 
 # Application definition
@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'corsheaders',
     'products',
     'ec_accounts',
 ]
@@ -45,6 +46,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -71,6 +73,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ec_management.wsgi.application'
 
+CORS_ORIGIN_WHITELIST = (
+        'http://localhost:8000',
+        'http://localhost:5173',
+        )
+
+CSRF_TRUSTED_ORIGINS = ['http://localhost:5173']
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
