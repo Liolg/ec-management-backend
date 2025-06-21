@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DirectMaterial, DirectLabor, CostSheet, CostSheetMaterial, CostSheetLabor, Product, ProductItem
+from .models import DirectMaterial, DirectLabor, CostSheet, CostSheetMaterial, CostSheetLabor, Product, ProductItem 
 
 admin.site.register( DirectMaterial )
 admin.site.register( DirectLabor )

@@ -1,5 +1,3 @@
-import datetime
-
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -8,13 +6,22 @@ class EcAccount(models.Model):
             max_length=50,
             unique=True,
             )
+    class AccountType(models.TextChoices):
+        CREDIT = "CR", "Credit"
+        DEBTOR = "DE", "Debit"
+
+    type = models.CharField(
+            max_length=2,
+            choices=AccountType.choices,
+            default=AccountType.CREDIT,
+            )
 
     def __str__(self) -> str:
         return self.name
 
 
 class DailyEntry(models.Model):
-    created = models.DateTimeField(default=datetime.datetime.now())
+    created = models.DateTimeField(auto_now_add=True)
     employee = models.ForeignKey(
                 User,
                 on_delete=models.PROTECT,
@@ -34,14 +41,14 @@ class EcAccountEntry(models.Model):
             EcAccount,
             on_delete=models.CASCADE,
             )
-    class AccountType(models.TextChoices):
+    class EntryType(models.TextChoices):
         CREDIT = "CR", "Credit"
         DEBTOR = "DE", "Debit"
 
     type = models.CharField(
             max_length=2,
-            choices=AccountType.choices,
-            default=AccountType.CREDIT,
+            choices=EntryType.choices,
+            default=EntryType.CREDIT,
             )
 
     class Meta:

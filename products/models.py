@@ -12,8 +12,11 @@ class DirectMaterial(models.Model):
 class DirectLabor(models.Model):
     name = models.CharField(max_length=50)
     time_unit = models.CharField(max_length=10)
-    const_by_unit = models.PositiveIntegerField()
-
+    cost_by_unit = models.FloatField()
+    class Meta:
+        constraints = [
+                models.UniqueConstraint( fields = [ "name", "cost_by_unit", "time_unit" ], name = "unique_labor")
+        ]
     def __str__(self) -> str:
         return self.name
 
@@ -65,8 +68,8 @@ class Product(models.Model):
 
 class ProductItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    ec_acc_entry = models.ForeignKey(EcAccountEntry, on_delete=models.CASCADE)
     qty = models.IntegerField()
+    ec_acc_entry = models.ForeignKey(EcAccountEntry, on_delete=models.CASCADE)
 
     @property
     def total_price(self):
@@ -75,3 +78,9 @@ class ProductItem(models.Model):
     def total_price_display(self):
         return f"${self.total_price:.2f}"
 
+    @property
+    def total_cost(self):
+        return self.qty * self.product.cost_by_unit
+    
+    def total_cost_display(self):
+        return f"${self.total_cost:.2f}"
