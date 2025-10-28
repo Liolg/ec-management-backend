@@ -10,4 +10,4 @@ admin.site.register( Product )
 
 @admin.register( ProductItem )
 class ProductItemAdmin(admin.ModelAdmin):
-    readonly_fields = ("total_price",)
+    readonly_fields = ('total_cost', "total_price")
