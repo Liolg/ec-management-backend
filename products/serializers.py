@@ -15,7 +15,7 @@ class DirectLaborSerializer(serializers.ModelSerializer):
 class CostSheetSerializer(serializers.ModelSerializer):
     class Meta:
         model=CostSheet
-        fields="__all__"
+        fields=['total_cost', 'selling_price', 'unit']
 
 class CostSheetMaterialSerializer(serializers.ModelSerializer):
     class Meta:
@@ -28,11 +28,13 @@ class CostSheetLaborSerializer(serializers.ModelSerializer):
         fields="__all__"
 
 class ProductSerializer(serializers.ModelSerializer):
+    cost_sheet=CostSheetSerializer()
     class Meta:
         model=Product
-        fields="__all__"
+        fields=['id', 'name', 'cost_sheet']
 
 class ProductItemSerializer(serializers.ModelSerializer):
+    product = ProductSerializer()
     class Meta:
         model=ProductItem
-        fields="__all__"
+        fields=['id', 'qty', 'product']
