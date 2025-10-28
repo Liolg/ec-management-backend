@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Account, Entry, Line
 from .services import create_journal_entry
+from products.serializers import ProductItemSerializer
 
 
 class AccountSerializer(serializers.ModelSerializer):
@@ -9,16 +10,17 @@ class AccountSerializer(serializers.ModelSerializer):
         fields = ['id', 'code', 'name', 'type']
 
 
-class EcAccountLineSerializer(serializers.ModelSerializer):
+class EntryLineSerializer(serializers.ModelSerializer):
     account = serializers.PrimaryKeyRelatedField(queryset=Account.objects.all())
+    product_item = ProductItemSerializer(source='productitem', read_only=True)
 
     class Meta:
         model = Line
-        fields = ['id', 'account', 'description', 'debit', 'credit']
+        fields = ['id', 'account', 'description', 'debit', 'credit', 'product_item']
 
 
-class EcAccountEntrySerializer(serializers.ModelSerializer):
-    lines = EcAccountLineSerializer(many=True)
+class EntrySerializer(serializers.ModelSerializer):
+    lines = EntryLineSerializer(many=True)
 
     class Meta:
         model = Entry

@@ -1,8 +1,8 @@
 from rest_framework.routers import DefaultRouter
-from .views import AccountViewSet, EcAccountEntryViewSet
+from .views import AccountViewSet, EntryViewSet
 
 router = DefaultRouter()
 router.register(r'accounts', AccountViewSet)
-router.register(r'entries', EcAccountEntryViewSet)
+router.register(r'entries', EntryViewSet)
 
 urlpatterns = router.urls

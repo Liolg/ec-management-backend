@@ -1,11 +1,11 @@
-from rest_framework.routers import SimpleRouter
+from rest_framework.routers import DefaultRouter
 
 from .views import DirectMaterialViewSet, DirectLaborViewSet, CostSheetViewSet, ProductViewSet
 
-router = SimpleRouter()
-router.register("materials", DirectMaterialViewSet, basename="material")
-router.register("labors", DirectLaborViewSet, basename="labor")
-router.register("costsheets", CostSheetViewSet, basename="costsheet")
-router.register("products", ProductViewSet, basename="product")
+router = DefaultRouter()
+router.register(r"materials", DirectMaterialViewSet)
+router.register(r"labors", DirectLaborViewSet)
+router.register(r"costsheets", CostSheetViewSet)
+router.register(r"products", ProductViewSet)
 
 urlpatterns = router.urls

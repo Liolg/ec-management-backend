@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Account, Entry
-from .serializers import AccountSerializer, EcAccountEntrySerializer
+from .serializers import AccountSerializer, EntrySerializer
 
 
 class AccountViewSet(viewsets.ModelViewSet):
@@ -10,9 +10,9 @@ class AccountViewSet(viewsets.ModelViewSet):
     serializer_class = AccountSerializer
 
 
-class EcAccountEntryViewSet(viewsets.ModelViewSet):
+class EntryViewSet(viewsets.ModelViewSet):
     queryset = Entry.objects.prefetch_related('lines__account').all()
-    serializer_class = EcAccountEntrySerializer
+    serializer_class = EntrySerializer
 
     @action(detail=True, methods=['post'])
     def void(self, request, pk=None):
