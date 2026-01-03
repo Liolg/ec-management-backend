@@ -1,6 +1,7 @@
 from decimal import Decimal
 from django.db import models, transaction
 from django.core.exceptions import ValidationError
+# from products.models import ProductItem
 
 
 class Account(models.Model):
@@ -28,7 +29,7 @@ class Account(models.Model):
         ordering = ('code',)
 
     def __str__(self):
-        return f"{self.code} - {self.name}"
+        return f"Account - {self.name}"
 
 
 class Entry(models.Model):
@@ -37,48 +38,46 @@ class Entry(models.Model):
     reference = models.CharField(max_length=128, blank=True, null=True)
     voided = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    last_modified_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ('-date', '-created_at')
 
     def __str__(self):
-        return f"Entry {self.id} — {self.date} — {self.reference or 'no-ref'}"
+        return f"Entry #{self.id} of {self.date}"
 
     @property
     def total_debit(self):
-        s = self.lines.aggregate(total=models.Sum('debit'))['total']
-        return s or Decimal('0.00')
+        total = self.lines.filter(type="D").aggregate(total=models.Sum('value'))['total']
+        return total or Decimal('0.00')
 
     @property
     def total_credit(self):
-        s = self.lines.aggregate(total=models.Sum('credit'))['total']
-        return s or Decimal('0.00')
+        total = self.lines.filter(type="C").aggregate(total=models.Sum('credit'))['total']
+        return total or Decimal('0.00')
 
     def is_balanced(self):
         return self.total_debit == self.total_credit
 
     def clean(self):
-        if self.pk:  # si ya existe y tiene líneas
-            if not self.is_balanced():
-                raise ValidationError('Asiento desbalanceado: debe == haber')
+        if not self.is_balanced():
+            raise ValidationError('Asiento desbalanceado')
 
 
 class Line(models.Model):
+    type_choices = [('D', 'debit'), ('C', 'credit')]
     entry = models.ForeignKey(Entry, related_name='lines', on_delete=models.CASCADE)
     account = models.ForeignKey(Account, on_delete=models.PROTECT)
+    # product = models.ForeignKey(ProductItem, on_delete=models.PROTECT, null=True, blank=True)
     description = models.CharField(max_length=200, blank=True)
-    debit = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal('0.00'))
-    credit = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal('0.00'))
+    value = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal('0.00'))
+    type = models.CharField(max_length=18, choices=type_choices, default='D')
 
     class Meta:
         constraints = [
-            models.CheckConstraint(check=models.Q(debit__gte=0), name='debit_non_negative'),
-            models.CheckConstraint(check=models.Q(credit__gte=0), name='credit_non_negative'),
+            models.CheckConstraint(check=models.Q(value__gte=0), name='value_non_negative'),
         ]
 
-    def clean(self):
-        if self.debit > Decimal('0.00') and self.credit > Decimal('0.00'):
-            raise ValidationError('Una línea no puede tener debit y credit simultáneamente')
     def __str__(self):
-        return f"{'debit' if self.debit > 0 else 'credit'} — {self.account} — {self.entry}"
+        return f"{'debit' if self.type == 'D' else 'credit'} {self.value} in {self.account} — {self.entry}"
 

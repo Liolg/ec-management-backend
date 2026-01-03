@@ -4,44 +4,51 @@ from .models import Entry, Line
 from django.core.exceptions import ValidationError
 
 
-def create_journal_entry(date, lines, description=None, reference=None):
-    """
-    Crea un EcAccountEntry con sus EcAccountLine en una transacción atómica.
-
-    `lines` debe ser una lista de dicts con: { 'account': <Account instance>, 'debit': Decimal|float|int, 'credit': Decimal|float|int, 'description': str }
-
-    Valida que suma(debit) == suma(credit) y que cada línea tiene sólo debit o credit (no ambos > 0).
-
-    Retorna el EcAccountEntry creado.
-    """
-    # normalizar inputs a Decimal
-    normalized = []
+def create_update_entry(instance=None, data=None):
+    if not data:
+        raise ValidationError('No data')
     total_debit = Decimal('0.00')
     total_credit = Decimal('0.00')
-
-    for ln in lines:
-        d = Decimal(str(ln.get('debit', 0)))
-        c = Decimal(str(ln.get('credit', 0)))
-        if d > Decimal('0.00') and c > Decimal('0.00'):
-            raise ValidationError('Una línea no puede tener debit y credit simultáneamente')
-        total_debit += d
-        total_credit += c
-        normalized.append({
-            'account': ln['account'],
-            'debit': d,
-            'credit': c,
-            'description': ln.get('description', ''),
-        })
-
+    lines = data.get('lines', [])
+    create_lines = []
+    update_lines = []
+    for line in lines:
+        v = Decimal(str(line.get('value', 0)))
+        if(line.get('type') == 'D'):
+            total_debit += v
+        else:
+            total_credit += v
+        if line.get('id'):
+            update_lines.append(line)
+        else:
+            create_lines.append(line)
     if total_debit != total_credit:
         raise ValidationError(f'Asiento desbalanceado: total_debit={total_debit} != total_credit={total_credit}')
 
     with transaction.atomic():
-        entry = Entry.objects.create(date=date, description=description or '', reference=reference)
-        bulk = []
-        for ln in normalized:
-            bulk.append(Line(entry=entry, account=ln['account'], debit=ln['debit'], credit=ln['credit'], description=ln['description']))
-        Line.objects.bulk_create(bulk)
-        # refetch to ensure aggregates work
+        if instance:
+            entry = instance
+        else:
+            entry = Entry.objects.create(date=data.date, description=data.description or '', reference=data.reference)
+        bulk_create_lines = []
+        for line in create_lines:
+            bulk_create_lines.append(Line(entry=entry, account=line['account'], value=line['value'], description=line['description']))
+        Line.objects.bulk_create(bulk_create_lines)
+        bulk_update_lines = []
+        for line in update_lines:
+            line_id=line.get('id')
+            ln=Line.objects.get(pk=line_id)
+            ln.entry=entry
+            ln.value=line['value']
+            ln.description=line['description']
+            ln.account=line['account']
+            bulk_update_lines.append(ln)
+            # bulk_update_lines.append(Line(id=line['id'], entry=entry, account=line['account'], value=line['value'], description=line['description']))
+        Line.objects.bulk_update(bulk_update_lines,['entry','account','value','description'])
+        previous_lines=[e.id for e in entry.lines.all()]
+        updated_lines=[e.id for e in bulk_update_lines]
+        for l in previous_lines:
+            if l not in updated_lines:
+                Line.objects.get(pk=l).delete()
         entry.refresh_from_db()
         return entry

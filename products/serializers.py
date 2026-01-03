@@ -34,7 +34,11 @@ class ProductSerializer(serializers.ModelSerializer):
         fields=['id', 'name', 'cost_sheet']
 
 class ProductItemSerializer(serializers.ModelSerializer):
-    product = ProductSerializer()
+    # product = ProductSerializer()
+    name=serializers.CharField(source='product.name', required=False)
+    total_cost=serializers.CharField(source='product.cost_sheet.total_cost', required=False)
+    selling_price=serializers.CharField(source='product.cost_sheet.selling_price', required=False)
+    unit=serializers.CharField(source='product.cost_sheet.unit', required=False)
     class Meta:
         model=ProductItem
-        fields=['id', 'qty', 'product']
+        fields=['id', 'qty', 'name', 'total_cost', 'selling_price', 'unit']

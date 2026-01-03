@@ -17,4 +17,4 @@ class EcAccountEntryAdmin(admin.ModelAdmin):
 
 @admin.register(Line)
 class EntryLineAdmin(admin.ModelAdmin):
-    list_display = ('entry', 'account', 'description', 'debit', 'credit')
+    list_display = ('id','entry', 'account', 'description', 'value', 'type')
