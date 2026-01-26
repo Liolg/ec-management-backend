@@ -11,12 +11,12 @@ class AccountSerializer(serializers.ModelSerializer):
 
 class LineSerializer(serializers.ModelSerializer):
     # account = serializers.PrimaryKeyRelatedField(queryset=Account.objects.all())
-    # product_item = ProductItemSerializer(source='productitem', read_only=True)
+    product_item = ProductItemSerializer(source='productitem', required=False)
     id = serializers.IntegerField(required=False)
 
     class Meta:
         model = Line
-        fields = ['id', 'account', 'description', 'value', 'type',]
+        fields = ['id','account','description','value','type','product_item']
 
 class EntrySerializer(serializers.ModelSerializer):
     lines = LineSerializer(many=True)

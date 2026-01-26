@@ -1,7 +1,6 @@
 from decimal import Decimal
 from django.db import models, transaction
 from django.core.exceptions import ValidationError
-# from products.models import ProductItem
 
 
 class Account(models.Model):

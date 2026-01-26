@@ -5,7 +5,6 @@ from .models import Account, Entry
 from .serializers import AccountSerializer, EntrySerializer
 from .services import create_update_entry
 
-
 class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all()
     serializer_class = AccountSerializer
@@ -18,8 +17,9 @@ class EntryViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
-            print(serializer.validated_data)
-            create_update_entry(data=serializer.validated_data)
+            entry=create_update_entry(data=serializer.validated_data)
+            return Response(serializer.data,status=status.HTTP_200_OK)
+        #TODO: fix_me
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, pk):
