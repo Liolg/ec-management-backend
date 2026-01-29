@@ -67,7 +67,6 @@ class Line(models.Model):
     type_choices = [('D', 'debit'), ('C', 'credit')]
     entry = models.ForeignKey(Entry, related_name='lines', on_delete=models.CASCADE)
     account = models.ForeignKey(Account, on_delete=models.PROTECT)
-    # product = models.ForeignKey(ProductItem, on_delete=models.PROTECT, null=True, blank=True)
     description = models.CharField(max_length=200, blank=True)
     value = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal('0.00'))
     type = models.CharField(max_length=18, choices=type_choices, default='D')

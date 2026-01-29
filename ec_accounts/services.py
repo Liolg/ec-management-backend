@@ -38,14 +38,18 @@ def create_update_entry(instance=None, data=None):
 
     with transaction.atomic():
         bulk_create_lines = []
+        create_lines_product_item = []
+        update_lines_product_item = []
         bulk_update_lines = []
         if instance:
             entry = instance
         else:
             entry = Entry.objects.create(date=data.get('date'), description=data.get('description',''), reference=data.get('reference'))
-        for line in lines_list_to_create:
+        for (line, index) in lines_list_to_create:
             new_line=Line(entry=entry, account=line['account'], value=line['value'], description=line['description'],type=line['type'])
             bulk_create_lines.append(new_line)
+            create_lines_product_item.append(line.get('productitem',None))
+
         for line in lines_list_to_update:
             line_id=line.get('id')
             ln=Line.objects.get(pk=line_id)
@@ -55,6 +59,7 @@ def create_update_entry(instance=None, data=None):
             ln.account=line.get('account', ln.account)
             ln.type=line.get('type', ln.type)
             bulk_update_lines.append(ln)
+            update_lines_product_item.append(line.get('productitem',None))
             # bulk_update_lines.append(Line(id=line['id'], entry=entry, account=line['account'], value=line['value'], description=line['description']))
         previous_lines=[e.id for e in entry.lines.all()]
         Line.objects.bulk_create(bulk_create_lines)
@@ -62,4 +67,6 @@ def create_update_entry(instance=None, data=None):
         updated_lines=[e.id for e in bulk_update_lines]
         delete_obsolete_lines(previous_lines, updated_lines)
         entry.refresh_from_db()
+        print(create_lines_product_item)
+        print(update_lines_product_item)
         return entry

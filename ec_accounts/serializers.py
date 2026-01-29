@@ -10,15 +10,28 @@ class AccountSerializer(serializers.ModelSerializer):
         fields = ['id', 'code', 'name', 'type']
 
 class LineSerializer(serializers.ModelSerializer):
-    # account = serializers.PrimaryKeyRelatedField(queryset=Account.objects.all())
-    product_item = ProductItemSerializer(source='productitem', required=False)
+    productitem = ProductItemSerializer(allow_null=True)
     id = serializers.IntegerField(required=False)
 
     class Meta:
         model = Line
-        fields = ['id','account','description','value','type','product_item']
+        fields = ['id','account','description','value','type','productitem']
 
-class EntrySerializer(serializers.ModelSerializer):
+    # def validate_productitem(self, value):
+    #     ser = ProductItemSerializer(data=value)
+    #     if ser.is_valid(raise_exception=True):
+    #         return ser.validated_data
+    #     return value
+
+class EntryReadSerializer(serializers.ModelSerializer):
+    lines = LineSerializer(many=True)
+
+    class Meta:
+        model = Entry
+        fields = ['id', 'date', 'description', 'reference', 'voided', 'lines']
+        read_only_fields = ['voided']
+
+class EntryWriteSerializer(serializers.ModelSerializer):
     lines = LineSerializer(many=True)
 
     class Meta:

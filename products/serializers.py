@@ -34,12 +34,17 @@ class ProductSerializer(serializers.ModelSerializer):
         fields=['id', 'name', 'cost_sheet']
 
 class ProductItemSerializer(serializers.ModelSerializer):
-    # product = ProductSerializer()
+    id = serializers.IntegerField(required=False)
     name=serializers.CharField(source='product.name', required=False)
     product=serializers.CharField(source='product.id', required=False)
     total_cost=serializers.CharField(source='product.cost_sheet.total_cost', required=False)
     selling_price=serializers.CharField(source='product.cost_sheet.selling_price', required=False)
-    unit=serializers.CharField(source='product.cost_sheet.unit', required=False)
+    unit=serializers.CharField(source='product.cost_sheet.unit', required=False, allow_blank=True)
     class Meta:
         model=ProductItem
         fields=['id','qty','name','product','total_cost','selling_price','unit']
+
+    def validate_id(self,value):
+        if not ProductItem.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(f"Product item {value} does not exist")
+        return value

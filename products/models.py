@@ -69,7 +69,6 @@ class Product(models.Model):
 class ProductItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     qty = models.IntegerField(blank=True)
-    #ec_acc_entry = models.ForeignKey(Entry, on_delete=models.CASCADE)
     entry_line=models.OneToOneField(Line, on_delete=models.CASCADE)
 
     @property

@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Account, Entry
-from .serializers import AccountSerializer, EntrySerializer
+from .serializers import AccountSerializer, EntryReadSerializer, EntryWriteSerializer
 from .services import create_update_entry
 
 class AccountViewSet(viewsets.ModelViewSet):
@@ -12,7 +12,12 @@ class AccountViewSet(viewsets.ModelViewSet):
 
 class EntryViewSet(viewsets.ModelViewSet):
     queryset = Entry.objects.prefetch_related('lines__account').all()
-    serializer_class = EntrySerializer
+
+    def get_serializer_class(self):
+        if self.action in ['list', 'retrieve']:
+            return EntryReadSerializer
+        else:
+            return EntryWriteSerializer
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
