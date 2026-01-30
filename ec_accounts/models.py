@@ -77,5 +77,5 @@ class Line(models.Model):
         ]
 
     def __str__(self):
-        return f"{'debit' if self.type == 'D' else 'credit'} {self.value} in {self.account} — {self.entry}"
+        return f"id: {self.id}, {'debit' if self.type == 'D' else 'credit'} {self.value} in {self.account} — {self.entry}"
 
