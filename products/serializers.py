@@ -44,7 +44,7 @@ class ProductItemSerializer(serializers.ModelSerializer):
         model=ProductItem
         fields=['id','qty','name','product','total_cost','selling_price','unit']
 
-    def validate_id(self,value):
-        if not ProductItem.objects.filter(pk=value).exists():
-            raise serializers.ValidationError(f"Product item {value} does not exist")
-        return value
+    # def validate_id(self,value):
+    #     if not ProductItem.objects.filter(pk=value).exists():
+    #         raise serializers.ValidationError(f"Product item {value} does not exist")
+    #     return value
