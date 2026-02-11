@@ -35,16 +35,16 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class ProductItemSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
-    name=serializers.CharField(source='product.name', required=False)
-    product=serializers.CharField(source='product.id', required=False)
-    total_cost=serializers.CharField(source='product.cost_sheet.total_cost', required=False)
-    selling_price=serializers.CharField(source='product.cost_sheet.selling_price', required=False)
-    unit=serializers.CharField(source='product.cost_sheet.unit', required=False, allow_blank=True)
+    name=serializers.CharField(source='product.name',read_only=True)
+    product=serializers.IntegerField(source='product.id')
+    total_cost=serializers.CharField(source='product.cost_sheet.total_cost',read_only=True)
+    selling_price=serializers.CharField(source='product.cost_sheet.selling_price',read_only=True)
+    unit=serializers.CharField(source='product.cost_sheet.unit',read_only=True)
     class Meta:
         model=ProductItem
-        fields=['id','qty','name','product','total_cost','selling_price','unit']
+        fields=['id','qty','name','total_cost','selling_price','unit','product']
 
-    # def validate_id(self,value):
-    #     if not ProductItem.objects.filter(pk=value).exists():
-    #         raise serializers.ValidationError(f"Product item {value} does not exist")
-    #     return value
+    def to_internal_value(self, data):
+        deserialized_data=super().to_internal_value(data)
+        deserialized_data['product']=deserialized_data.get('product').get('id')
+        return deserialized_data

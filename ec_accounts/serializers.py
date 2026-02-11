@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from .models import Account, Entry, Line
-from .services import create_update_entry
+from .services import validate_lines_balance, update_entry, create_entry
 from products.serializers import ProductItemSerializer
-from products.models import ProductItem
+from products.models import ProductItem, Product
 
 
 class AccountSerializer(serializers.ModelSerializer):
@@ -11,55 +11,59 @@ class AccountSerializer(serializers.ModelSerializer):
         fields = ['id', 'code', 'name', 'type']
 
 class LineListSerializer(serializers.ListSerializer):
-    productitem = ProductItemSerializer(allow_null=True)
-    class Meta:
-        model = Line
-        fields=['__all__']
-    def validate(self, data):
-        ids = [item.get("id") for item in data if item.get("id")]
 
-        if ids:
+    def validate(self, data):
+        validate_lines_balance(data)
+        lines_ids = [item.get("id") for item in data if item.get("id")]
+        if lines_ids:
             existing_ids = set(
-                Line.objects.filter(id__in=ids).values_list("id", flat=True)
+                Line.objects.filter(id__in=lines_ids).values_list("id", flat=True)
             )
-            missing_ids = set(ids) - existing_ids
+            missing_ids = set(lines_ids) - existing_ids
             if missing_ids:
                 raise serializers.ValidationError(
                     f"Lines with id(s) {missing_ids} do not exist"
                 )
-        product_ids = []
-        for item in data:
-            pi = item.get("productitem")
-            if pi is None:
+        product_items_ids = []
+        products_ids=[]
+        for line in data:
+            product_item = line.get("product_item")
+            if product_item is None:
                 continue
-            pid = pi.get("id")
-            if pid:
-                product_ids.append(pid)
-        if product_ids:
-            existing_product_ids = set(
-                ProductItem.objects.filter(id__in=product_ids).values_list("id", flat=True)
+            product_item_id = product_item.get("id")
+            product_id = product_item.get("product")
+            if product_item_id:
+                product_items_ids.append(product_item_id)
+            if product_id:
+                products_ids.append(product_id)
+        if product_items_ids:
+            existing_product_items = set(
+                ProductItem.objects.filter(id__in=product_items_ids).values_list("id", flat=True)
             )
-            missing_product_ids = set(product_ids) - existing_product_ids
-            if missing_product_ids:
+            missing_product_items = set(product_items_ids) - existing_product_items
+            if missing_product_items:
                 raise serializers.ValidationError(
-                    {"productitem": f"ProductItem id(s) {missing_product_ids} do not exist"}
+                    {"product_item": f"ProductItem id(s) {missing_product_items} do not exist"}
+                )
+        print(products_ids)
+        if products_ids:
+            existing_products = set(
+                Product.objects.filter(id__in=products_ids).values_list("id", flat=True)
+            )
+            missing_products = set(products_ids) - existing_products
+            if missing_products:
+                raise serializers.ValidationError(
+                    {"product_item": f"Product id(s) {missing_products} do not exist"}
                 )
         return data
-    def create(self, validated_data):
-        print(validated_data)
-
-        # books = [Book(**item) for item in validated_data]
-        # return Book.objects.bulk_create(books)
-    def update(self, instance, validated_data):
-        print(self,instance,validated_data)
-
 
 class LineSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
-    productitem = ProductItemSerializer(allow_null=True, required=False)
+    product_item = ProductItemSerializer(required=False)
+
     class Meta:
         model = Line
-        fields = ['id','account','description','value','type','productitem']
+        fields = ['id','account','description','value','type','product_item']
         list_serializer_class = LineListSerializer
 
 class EntryReadSerializer(serializers.ModelSerializer):
@@ -77,11 +81,11 @@ class EntryWriteSerializer(serializers.ModelSerializer):
         model = Entry
         fields = ['id', 'date', 'description', 'reference', 'voided', 'lines']
         read_only_fields = ['voided']
+
     def create(self, validated_data):
-        print(validated_data)
+        entry=create_entry(validated_data)
+        return entry
 
     def update(self, instance, validated_data):
-        print('-'*30)
-        for (key, value) in validated_data.items():
-            print(key, value)
-        return instance
+        entry=update_entry(instance, data=validated_data)
+        return entry

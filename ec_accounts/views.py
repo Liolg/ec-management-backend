@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Account, Entry
 from .serializers import AccountSerializer, EntryReadSerializer, EntryWriteSerializer
-from .services import create_update_entry
+from .services import update_entry
 
 class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all()
@@ -19,22 +19,23 @@ class EntryViewSet(viewsets.ModelViewSet):
         else:
             return EntryWriteSerializer
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid(raise_exception=True):
-            # entry=create_update_entry(data=serializer.validated_data)
-            return Response(serializer.data,status=status.HTTP_200_OK)
-        #TODO: fix_me
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    # def create(self, request, *args, **kwargs):
+    #     serializer = self.get_serializer(data=request.data)
+    #     if serializer.is_valid(raise_exception=True):
+    #         serializer.save()
+    #         # entry=create_update_entry(data=serializer.validated_data)
+    #         return Response(serializer.data,status=status.HTTP_200_OK)
+    #     #TODO: fix_me
+    #     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    def update(self, request, pk):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data)
-        if serializer.is_valid(raise_exception=True):
-            # entry=create_update_entry(instance=instance, data=serializer.validated_data)
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    # def update(self, request, pk):
+    #     instance = self.get_object()
+    #     serializer = self.get_serializer(instance, data=request.data)
+    #     if serializer.is_valid(raise_exception=True):
+    #         # entry=create_update_entry(instance=instance, data=serializer.validated_data)
+    #         serializer.save()
+    #         return Response(serializer.data, status=status.HTTP_200_OK)
+    #     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'])
     def void(self, request, pk=None):

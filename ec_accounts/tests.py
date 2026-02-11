@@ -1,7 +1,7 @@
 from django.test import TestCase
 from decimal import Decimal
 from .models import Account, Entry, Line
-from .services import create_update_entry
+from .services import update_entry
 
 class AccountingBasicTests(TestCase):
     def setUp(self):
@@ -9,7 +9,7 @@ class AccountingBasicTests(TestCase):
         self.a2 = Account.objects.create(code='4000', name='Ventas', type=Account.INCOME)
 
     def test_create_balanced_entry(self):
-        entry = create_update_entry(
+        entry = update_entry(
             date='2025-01-01',
             lines=[
                 {'account': self.a1, 'debit': Decimal('100.00'), 'credit': Decimal('0.00')},
@@ -23,7 +23,7 @@ class AccountingBasicTests(TestCase):
     def test_unbalanced_raises(self):
         from django.core.exceptions import ValidationError
         with self.assertRaises(ValidationError):
-            create_update_entry(
+            update_entry(
                 date='2025-01-01',
                 lines=[
                     {'account': self.a1, 'debit': Decimal('90.00'), 'credit': Decimal('0.00')},

@@ -1,12 +1,30 @@
 from django.contrib import admin
-from .models import DirectMaterial, DirectLabor, CostSheet, CostSheetMaterial, CostSheetLabor, Product, ProductItem 
+from unfold.admin import ModelAdmin, TabularInline
+from .models import DirectMaterial, DirectLabor, CostSheet, CostSheetMaterial, CostSheetLabor, Product, ProductItem
 
-admin.site.register( DirectMaterial )
-admin.site.register( DirectLabor )
-admin.site.register( CostSheet )
-admin.site.register( CostSheetMaterial )
-admin.site.register( CostSheetLabor )
-admin.site.register( Product )
+@admin.register( DirectMaterial )
+class DirectMaterialAdmin(ModelAdmin):
+    pass
+
+@admin.register( DirectLabor )
+class DirectLaborAdmin(ModelAdmin):
+    pass
+
+@admin.register( CostSheet )
+class CostSheetAdmin(ModelAdmin):
+    pass
+
+@admin.register( CostSheetMaterial )
+class CostSheetMaterialAdmin(ModelAdmin):
+    pass
+
+@admin.register( CostSheetLabor )
+class CostSheetLaborAdmin(ModelAdmin):
+    pass
+
+@admin.register( Product )
+class ProductAdmin(ModelAdmin):
+    pass
 
 @admin.register( ProductItem )
 class ProductItemAdmin(admin.ModelAdmin):
