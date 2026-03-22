@@ -45,7 +45,6 @@ class LineListSerializer(serializers.ListSerializer):
                 raise serializers.ValidationError(
                     {"product_item": f"ProductItem id(s) {missing_product_items} do not exist"}
                 )
-        print(products_ids)
         if products_ids:
             existing_products = set(
                 Product.objects.filter(id__in=products_ids).values_list("id", flat=True)
