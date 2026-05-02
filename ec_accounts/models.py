@@ -52,7 +52,7 @@ class Entry(models.Model):
 
     @property
     def total_credit(self):
-        total = self.lines.filter(type="C").aggregate(total=models.Sum('credit'))['total']
+        total = self.lines.filter(type="C").aggregate(total=models.Sum('value'))['total']
         return total or Decimal('0.00')
 
     def is_balanced(self):

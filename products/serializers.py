@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import DirectMaterial, DirectLabor, CostSheet, CostSheetMaterial, CostSheetLabor, Product, ProductItem
+from .models import DirectMaterial, DirectLabor, CostSheet, CostSheetMaterial, CostSheetLabor, Product, ProductItem, StockMovement
 
 class DirectMaterialSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,7 +15,7 @@ class DirectLaborSerializer(serializers.ModelSerializer):
 class CostSheetSerializer(serializers.ModelSerializer):
     class Meta:
         model=CostSheet
-        fields=['id','total_cost', 'selling_price', 'unit']
+        fields='__all__'
 
 class CostSheetMaterialSerializer(serializers.ModelSerializer):
     class Meta:
@@ -53,3 +53,15 @@ class ProductItemSerializer(serializers.ModelSerializer):
         deserialized_data=super().to_internal_value(data)
         deserialized_data['product']=deserialized_data.get('product').get('id')
         return deserialized_data
+
+
+class StockMovementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = StockMovement
+        fields = ['id', 'product', 'qty', 'direction', 'unit_cost', 'date', 'reference', 'created_at']
+        read_only_fields = ['created_at']
+
+
+class ProductStockSerializer(serializers.Serializer):
+    current_stock = serializers.IntegerField()
+    movements     = StockMovementSerializer(many=True)

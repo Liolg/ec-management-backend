@@ -66,6 +66,36 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def current_stock(self):
+        from django.db.models import Sum
+        in_qty  = self.stock_movements.filter(direction='IN').aggregate(t=Sum('qty'))['t'] or 0
+        out_qty = self.stock_movements.filter(direction='OUT').aggregate(t=Sum('qty'))['t'] or 0
+        return in_qty - out_qty
+
+
+class StockMovement(models.Model):
+    DIRECTION_IN  = 'IN'
+    DIRECTION_OUT = 'OUT'
+    DIRECTION_CHOICES = [
+        ('IN',  'Stock In'),
+        ('OUT', 'Stock Out'),
+    ]
+
+    product    = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='stock_movements')
+    qty        = models.PositiveIntegerField()
+    direction  = models.CharField(max_length=3, choices=DIRECTION_CHOICES)
+    unit_cost  = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    date       = models.DateField()
+    reference  = models.CharField(max_length=64, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-date', '-created_at')
+
+    def __str__(self):
+        return f"{self.direction} {self.qty} x {self.product} on {self.date}"
+
 class ProductItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     qty = models.IntegerField(blank=True)
@@ -73,14 +103,14 @@ class ProductItem(models.Model):
 
     @property
     def total_price(self):
-        return self.qty * self.product.cost_sheet.selling_price
-    
+        return self.qty * (self.product.cost_sheet.selling_price or 0)
+
     def total_price_display(self):
         return f"${self.total_price:.2f}"
 
     @property
     def total_cost(self):
-        return self.qty * self.product.cost_sheet.total_cost
-    
+        return self.qty * (self.product.cost_sheet.total_cost or 0)
+
     def total_cost_display(self):
         return f"${self.total_cost:.2f}"

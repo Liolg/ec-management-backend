@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(../venv/Scripts/python.exe -m pytest ec_accounts/ -v)",
+      "Bash(PYTHONPATH=ec_management DJANGO_SETTINGS_MODULE=ec_management.settings django_find_project=false venv/Scripts/python.exe -m pytest ec_management/ec_accounts/test_api.py -v --override-ini=\"django_find_project=false\")",
+      "Bash(PYTHONPATH=/c/Users/lioan/Documents/Projects/Personal/ec-management-backend/ec_management venv/Scripts/python.exe -m pytest ec_management/ec_accounts/test_api.py -v --override-ini=\"django_find_project=false\")",
+      "Bash(PYTHONPATH=/c/Users/lioan/Documents/Projects/Personal/ec-management-backend/ec_management venv/Scripts/python.exe:*)",
+      "Bash(venv/Scripts/python.exe)",
+      "Bash(PYTHONPATH=\"C:\\\\\\\\Users\\\\\\\\lioan\\\\\\\\Documents\\\\\\\\Projects\\\\\\\\Personal\\\\\\\\ec-management-backend\\\\\\\\ec_management\" venv/Scripts/python.exe -m pytest ec_management/ec_accounts/test_api.py -v --override-ini=\"django_find_project=false\")"
+    ]
+  }
+}

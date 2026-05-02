@@ -1,7 +1,7 @@
 from decimal import Decimal
 from django.db import transaction
 from .models import Entry, Line
-from django.core.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError
 from products.models import ProductItem, Product
 
 def validate_lines_balance(lines):
@@ -28,17 +28,18 @@ def get_separated_create_update_lines(lines):
 
 def delete_obsolete_lines(previous_lines, updated_lines):
     lines_to_delete = set(previous_lines) - set(updated_lines)
-    for line_id in lines_to_delete:
-        Line.objects.get(pk=line_id).delete()
+    if lines_to_delete:
+        Line.objects.filter(pk__in=lines_to_delete).delete()
 
+@transaction.atomic
 def create_entry(data):
     lines_data = data.pop('lines', [])
     entry = Entry.objects.create(
         date=data.pop('date'),
-        description=data.pop('description',''),
-        reference=data.pop('reference')
+        description=data.pop('description', ''),
+        reference=data.pop('reference', None)
     )
-    create_entry_lines(entry,lines_data)
+    create_entry_lines(entry, lines_data)
     entry.refresh_from_db()
     return entry
 
@@ -53,7 +54,7 @@ def create_entry_lines(entry,lines_data):
                 entry=entry,
                 account=line['account'],
                 value=line['value'],
-                description=line['description'],
+                description=line.get('description', ''),
                 type=line['type']
             )
             bulk_create_lines.append(new_line)
@@ -74,6 +75,10 @@ def create_entry_lines(entry,lines_data):
 def update_entry(instance, data=None):
     lines = data.pop('lines', [])
     lines_list_to_create, lines_list_to_update = get_separated_create_update_lines(lines)
+
+    for attr, value in data.items():
+        setattr(instance, attr, value)
+    instance.save()
 
     with transaction.atomic():
         bulk_update_lines = []
