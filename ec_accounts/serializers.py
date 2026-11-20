@@ -13,16 +13,27 @@ class AccountSerializer(serializers.ModelSerializer):
 class LineListSerializer(serializers.ListSerializer):
 
     def validate(self, data):
+        for item in data:
+            if not {'account', 'value', 'type'} <= item.keys():
+                raise serializers.ValidationError(
+                    'Each supplied line needs an account, value, and debit or credit type.'
+                )
         validate_lines_balance(data)
-        lines_ids = [item.get("id") for item in data if item.get("id")]
+        lines_ids = [item["id"] for item in data if item.get("id") is not None]
+        if len(lines_ids) != len(set(lines_ids)):
+            raise serializers.ValidationError('Line ids must be unique.')
         if lines_ids:
+            entry = getattr(self.parent, 'instance', None)
+            if entry is None:
+                raise serializers.ValidationError('New entries cannot include existing line IDs.')
+            queryset = Line.objects.filter(id__in=lines_ids, entry=entry)
             existing_ids = set(
-                Line.objects.filter(id__in=lines_ids).values_list("id", flat=True)
+                queryset.values_list("id", flat=True)
             )
             missing_ids = set(lines_ids) - existing_ids
             if missing_ids:
                 raise serializers.ValidationError(
-                    f"Lines with id(s) {missing_ids} do not exist"
+                    f"Lines with id(s) {sorted(missing_ids)} do not belong to this entry."
                 )
         product_items_ids = []
         products_ids=[]
@@ -67,14 +78,22 @@ class LineSerializer(serializers.ModelSerializer):
 
 class EntryReadSerializer(serializers.ModelSerializer):
     lines = LineSerializer(many=True)
+    source = serializers.SerializerMethodField()
 
     class Meta:
         model = Entry
-        fields = ['id', 'date', 'description', 'reference', 'voided', 'lines']
+        fields = ['id', 'date', 'description', 'reference', 'voided', 'source', 'lines']
         read_only_fields = ['voided']
 
+    def get_source(self, instance):
+        for source_type in ('sale', 'purchase', 'expense', 'payment'):
+            source = getattr(instance, source_type, None)
+            if source is not None:
+                return {'type': source_type, 'id': source.pk}
+        return None
+
 class EntryWriteSerializer(serializers.ModelSerializer):
-    lines = LineSerializer(many=True)
+    lines = LineSerializer(many=True, min_length=2)
 
     class Meta:
         model = Entry

@@ -38,7 +38,7 @@ class CostSheet(models.Model):
         return self.name
 
 class CostSheetMaterial(models.Model):
-    material = models.ForeignKey(DirectMaterial, on_delete=models.CASCADE)
+    material = models.ForeignKey(DirectMaterial, on_delete=models.PROTECT)
     cost_sheet = models.ForeignKey(CostSheet, on_delete=models.CASCADE)
     qty = models.IntegerField(blank=True)
     total_cost = models.IntegerField(blank=True)
@@ -49,7 +49,7 @@ class CostSheetMaterial(models.Model):
         ]
 
 class CostSheetLabor(models.Model):
-    labor = models.ForeignKey(DirectLabor, on_delete=models.CASCADE)
+    labor = models.ForeignKey(DirectLabor, on_delete=models.PROTECT)
     cost_sheet = models.ForeignKey(CostSheet, on_delete=models.CASCADE)
     qty = models.IntegerField(blank=True)
     total_cost = models.IntegerField(blank=True)
@@ -61,7 +61,7 @@ class CostSheetLabor(models.Model):
 
 class Product(models.Model):
     name = models.CharField(max_length=50)
-    cost_sheet = models.ForeignKey("CostSheet", on_delete=models.CASCADE)
+    cost_sheet = models.ForeignKey("CostSheet", on_delete=models.PROTECT)
 
     def __str__(self):
         return self.name
@@ -82,7 +82,7 @@ class StockMovement(models.Model):
         ('OUT', 'Stock Out'),
     ]
 
-    product    = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='stock_movements')
+    product    = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='stock_movements')
     qty        = models.PositiveIntegerField()
     direction  = models.CharField(max_length=3, choices=DIRECTION_CHOICES)
     unit_cost  = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
@@ -97,7 +97,7 @@ class StockMovement(models.Model):
         return f"{self.direction} {self.qty} x {self.product} on {self.date}"
 
 class ProductItem(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.PROTECT)
     qty = models.IntegerField(blank=True)
     entry_line=models.OneToOneField(Line, on_delete=models.CASCADE, related_name="product_item")
 

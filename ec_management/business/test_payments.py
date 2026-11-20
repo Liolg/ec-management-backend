@@ -77,6 +77,28 @@ class TestCreatePayment:
         assert response.status_code == status.HTTP_201_CREATED
         assert response.data['related_sale'] == sale_id
 
+    def test_received_payment_rejects_purchase_link(self, api_client, business_config):
+        from conftest import ProductFactory
+        product = ProductFactory()
+        purchase = api_client.post(reverse('purchase-list'), {
+            'product': product.pk, 'qty': 1, 'unit_cost': '10.00',
+            'date': '2026-05-01', 'payment_method': 'credit',
+        }, format='json')
+
+        response = api_client.post(PAYMENTS_URL, {
+            'direction': 'received', 'amount': '10.00',
+            'date': '2026-05-01', 'related_purchase': purchase.data['id'],
+        }, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_non_positive_amount_is_rejected(self, api_client, business_config):
+        response = api_client.post(PAYMENTS_URL, {
+            'direction': 'received', 'amount': '0.00', 'date': '2026-05-01',
+        }, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
 
 @pytest.mark.django_db
 class TestVoidPayment:

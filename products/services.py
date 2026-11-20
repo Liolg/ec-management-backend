@@ -6,6 +6,9 @@ from .models import CostSheet, CostSheetMaterial, CostSheetLabor
 
 @transaction.atomic
 def calculate_cost_sheet(cost_sheet):
+    # Viewsets prefetch component rows for reads. Calculations must always use
+    # the rows committed by the current nested write, not a stale prefetch.
+    cost_sheet._prefetched_objects_cache = {}
     materials = list(cost_sheet.costsheetmaterial_set.select_related('material').all())
     labors    = list(cost_sheet.costsheetlabor_set.select_related('labor').all())
 

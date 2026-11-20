@@ -1,7 +1,7 @@
 import pytest
 from django.urls import reverse
 from rest_framework import status
-from ec_accounts.models import Account, Entry
+from ec_accounts.models import Account, Entry, Line
 from conftest import AccountFactory, EntryFactory, LineFactory
 from decimal import Decimal
 
@@ -145,3 +145,96 @@ class TestEntryAPI:
         response = api_client.delete(url)
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not Entry.objects.filter(pk=entry.pk).exists()
+
+    def test_patch_without_lines_preserves_lines(self, api_client):
+        entry = EntryFactory(description='Before')
+        LineFactory(entry=entry, type='D')
+        LineFactory(entry=entry, type='C')
+
+        response = api_client.patch(
+            reverse('entry-detail', kwargs={'pk': entry.pk}),
+            {'description': 'After'},
+            format='json',
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert entry.lines.count() == 2
+
+    def test_patch_rejects_foreign_line_id(self, api_client):
+        entry = EntryFactory()
+        other_entry = EntryFactory()
+        account = AccountFactory()
+        own_debit = LineFactory(entry=entry, account=account, type='D')
+        own_credit = LineFactory(entry=entry, account=account, type='C')
+        foreign = LineFactory(entry=other_entry, account=account, type='D')
+
+        response = api_client.patch(
+            reverse('entry-detail', kwargs={'pk': entry.pk}),
+            {'lines': [
+                {'id': foreign.pk, 'account': account.pk, 'value': '100.00', 'type': 'D'},
+                {'id': own_credit.pk, 'account': account.pk, 'value': '100.00', 'type': 'C'},
+            ]},
+            format='json',
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert Line.objects.get(pk=foreign.pk).entry == other_entry
+        assert Line.objects.filter(pk=own_debit.pk).exists()
+
+    def test_patch_rejects_duplicate_line_ids(self, api_client):
+        entry = EntryFactory()
+        account = AccountFactory()
+        line = LineFactory(entry=entry, account=account, type='D')
+
+        response = api_client.patch(
+            reverse('entry-detail', kwargs={'pk': entry.pk}),
+            {'lines': [
+                {'id': line.pk, 'account': account.pk, 'value': '100.00', 'type': 'D'},
+                {'id': line.pk, 'account': account.pk, 'value': '100.00', 'type': 'C'},
+            ]},
+            format='json',
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_read_keeps_numeric_account_and_text_code(self, api_client):
+        entry = EntryFactory()
+        account = AccountFactory(code='0010')
+        LineFactory(entry=entry, account=account, type='D')
+
+        response = api_client.get(reverse('entry-detail', kwargs={'pk': entry.pk}))
+        account_response = api_client.get(reverse('account-detail', kwargs={'pk': account.pk}))
+
+        assert response.data['source'] is None
+        assert response.data['lines'][0]['account'] == account.pk
+        assert account_response.data['code'] == '0010'
+
+    def test_generated_entry_cannot_be_patched(self, api_client, business_config):
+        from business.services import create_expense
+
+        expense = create_expense({
+            'description': 'Rent', 'amount': Decimal('10.00'),
+            'date': '2026-05-01', 'payment_method': 'cash',
+        })
+
+        get_response = api_client.get(
+            reverse('entry-detail', kwargs={'pk': expense.entry_id}),
+        )
+        patch_response = api_client.patch(
+            reverse('entry-detail', kwargs={'pk': expense.entry_id}),
+            {'description': 'Changed'},
+            format='json',
+        )
+
+        assert get_response.data['source'] == {'type': 'expense', 'id': expense.pk}
+        assert patch_response.status_code == status.HTTP_409_CONFLICT
+
+    def test_referenced_account_delete_returns_conflict(self, api_client):
+        account = AccountFactory()
+        LineFactory(account=account)
+
+        response = api_client.delete(
+            reverse('account-detail', kwargs={'pk': account.pk}),
+        )
+
+        assert response.status_code == status.HTTP_409_CONFLICT

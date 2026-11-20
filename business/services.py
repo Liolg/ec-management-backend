@@ -21,6 +21,13 @@ STANDARD_ACCOUNTS = [
 
 @transaction.atomic
 def setup_business(company_name, currency='USD'):
+    config = BusinessConfig.get()
+    if config is not None:
+        config.company_name = company_name
+        config.currency = currency
+        config.save(update_fields=['company_name', 'currency'])
+        return config
+
     accounts = {}
     for acc_data in STANDARD_ACCOUNTS:
         account, _ = Account.objects.get_or_create(
@@ -37,6 +44,7 @@ def setup_business(company_name, currency='USD'):
         receivable_account=accounts['1100'],
         payable_account=accounts['2000'],
         revenue_account=accounts['4000'],
+        cogs_account=accounts['5000'],
         inventory_account=accounts['1200'],
         expense_account=accounts['6000'],
     )
@@ -47,7 +55,7 @@ def setup_business(company_name, currency='USD'):
 def _get_config():
     config = BusinessConfig.get()
     if config is None:
-        raise ValidationError('Business is not configured. Call POST /api/v1/business/setup/ first.')
+        raise ValidationError('Business is not configured. Call POST /api/business/setup/ first.')
     return config
 
 
@@ -63,6 +71,21 @@ def _make_entry(debit_account, credit_account, amount, date, description, refere
     })
 
 
+def _require_positive(value, field):
+    if value <= 0:
+        raise ValidationError({field: 'Must be greater than zero.'})
+
+
+def _claim_void(instance, label):
+    claimed = type(instance).objects.filter(
+        pk=instance.pk,
+        status='confirmed',
+    ).update(status='voided')
+    if claimed != 1:
+        raise ValidationError(f'{label} is already voided.')
+    instance.status = 'voided'
+
+
 # ---------------------------------------------------------------------------
 # Sales
 # ---------------------------------------------------------------------------
@@ -76,6 +99,8 @@ def create_sale(data):
     customer_name  = data.get('customer_name', '')
     payment_method = data.get('payment_method', 'cash')
 
+    _require_positive(qty, 'qty')
+
     if unit_price is None:
         selling_price = product.cost_sheet.selling_price
         if selling_price is None:
@@ -83,6 +108,8 @@ def create_sale(data):
                 'Product has no selling price. Provide unit_price or complete the cost sheet.'
             )
         unit_price = Decimal(str(selling_price))
+
+    _require_positive(unit_price, 'unit_price')
 
     total_amount   = qty * unit_price
     config         = _get_config()
@@ -111,16 +138,13 @@ def create_sale(data):
 
 @transaction.atomic
 def void_sale(sale):
-    if sale.status == 'voided':
-        raise ValidationError('Sale is already voided.')
+    _claim_void(sale, 'Sale')
     sale.entry.voided = True
-    sale.entry.save()
+    sale.entry.save(update_fields=['voided', 'last_modified_at'])
     StockMovement.objects.create(
         product=sale.product, qty=sale.qty, direction=StockMovement.DIRECTION_IN,
         date=sale.date, reference=f'VOID-SALE-{sale.id}',
     )
-    sale.status = 'voided'
-    sale.save()
     return sale
 
 
@@ -136,6 +160,9 @@ def create_purchase(data):
     date           = data['date']
     supplier_name  = data.get('supplier_name', '')
     payment_method = data.get('payment_method', 'cash')
+
+    _require_positive(qty, 'qty')
+    _require_positive(unit_cost, 'unit_cost')
 
     total_amount   = qty * unit_cost
     config         = _get_config()
@@ -164,16 +191,13 @@ def create_purchase(data):
 
 @transaction.atomic
 def void_purchase(purchase):
-    if purchase.status == 'voided':
-        raise ValidationError('Purchase is already voided.')
+    _claim_void(purchase, 'Purchase')
     purchase.entry.voided = True
-    purchase.entry.save()
+    purchase.entry.save(update_fields=['voided', 'last_modified_at'])
     StockMovement.objects.create(
         product=purchase.product, qty=purchase.qty, direction=StockMovement.DIRECTION_OUT,
         date=purchase.date, reference=f'VOID-PUR-{purchase.id}',
     )
-    purchase.status = 'voided'
-    purchase.save()
     return purchase
 
 
@@ -188,6 +212,8 @@ def create_expense(data):
     amount         = data['amount']
     date           = data['date']
     payment_method = data.get('payment_method', 'cash')
+
+    _require_positive(amount, 'amount')
 
     config         = _get_config()
     debit_account  = config.expense_account
@@ -206,12 +232,9 @@ def create_expense(data):
 
 @transaction.atomic
 def void_expense(expense):
-    if expense.status == 'voided':
-        raise ValidationError('Expense is already voided.')
+    _claim_void(expense, 'Expense')
     expense.entry.voided = True
-    expense.entry.save()
-    expense.status = 'voided'
-    expense.save()
+    expense.entry.save(update_fields=['voided', 'last_modified_at'])
     return expense
 
 
@@ -227,6 +250,16 @@ def create_payment(data):
     counterparty_name = data.get('counterparty_name', '')
     related_sale      = data.get('related_sale')
     related_purchase  = data.get('related_purchase')
+
+    _require_positive(amount, 'amount')
+    if direction == Payment.DIRECTION_RECEIVED and related_purchase is not None:
+        raise ValidationError({
+            'related_purchase': 'Received payments can only be linked to sales.',
+        })
+    if direction == Payment.DIRECTION_MADE and related_sale is not None:
+        raise ValidationError({
+            'related_sale': 'Payments made can only be linked to purchases.',
+        })
 
     config = _get_config()
 
@@ -251,10 +284,7 @@ def create_payment(data):
 
 @transaction.atomic
 def void_payment(payment):
-    if payment.status == 'voided':
-        raise ValidationError('Payment is already voided.')
+    _claim_void(payment, 'Payment')
     payment.entry.voided = True
-    payment.entry.save()
-    payment.status = 'voided'
-    payment.save()
+    payment.entry.save(update_fields=['voided', 'last_modified_at'])
     return payment

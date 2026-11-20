@@ -44,7 +44,18 @@ class ProductFactory(DjangoModelFactory):
     cost_sheet = SubFactory(CostSheetFactory)
 
 @pytest.fixture
-def api_client():
+def api_client(django_user_model):
+    user = django_user_model.objects.create_user(
+        username='api-test-user',
+        password='api-test-password',
+    )
+    client = APIClient()
+    client.force_authenticate(user=user)
+    return client
+
+
+@pytest.fixture
+def unauthenticated_api_client():
     return APIClient()
 
 @pytest.fixture

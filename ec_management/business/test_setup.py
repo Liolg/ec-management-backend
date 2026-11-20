@@ -79,6 +79,20 @@ class TestSetupPatch:
         assert response.status_code == status.HTTP_200_OK
         assert response.data['cash_account']['code'] == '1050'
 
+    def test_repeated_setup_preserves_remapped_accounts(self, api_client):
+        api_client.post(SETUP_URL, {'company_name': 'ACME'}, format='json')
+        new_account = AccountFactory(code='1050', type=Account.ASSET)
+        api_client.patch(SETUP_URL, {'cash_account': new_account.id}, format='json')
+
+        response = api_client.post(
+            SETUP_URL,
+            {'company_name': 'New Name', 'currency': 'BOB'},
+            format='json',
+        )
+
+        assert response.data['cash_account']['id'] == new_account.id
+        assert response.data['company_name'] == 'New Name'
+
     def test_patch_without_config_returns_404(self, api_client):
         response = api_client.patch(SETUP_URL, {'company_name': 'X'}, format='json')
         assert response.status_code == status.HTTP_404_NOT_FOUND

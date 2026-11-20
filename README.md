@@ -50,13 +50,31 @@ pip install -r requirements.txt
 python manage.py migrate
 ```
 
-### 4. Create a superuser (for `/admin/`)
+### 4. Configure the environment
+
+The development defaults use SQLite and allow the local frontend at
+`http://localhost:5173`. Production deployments should set:
+
+```bash
+export DJANGO_SECRET_KEY='replace-me'
+export DJANGO_DEBUG=false
+export DJANGO_ALLOWED_HOSTS='api.example.com'
+export DJANGO_CORS_ALLOWED_ORIGINS='https://app.example.com'
+export DJANGO_CSRF_TRUSTED_ORIGINS='https://app.example.com'
+```
+
+Comma-separate multiple hosts or origins. No environment file loader is
+required; provide variables through the shell or deployment platform.
+
+### 5. Create a user
 
 ```bash
 python manage.py createsuperuser
 ```
 
-### 5. Start the development server
+This user can sign in to `/admin/` and obtain API tokens.
+
+### 6. Start the development server
 
 ```bash
 python manage.py runserver
@@ -66,7 +84,8 @@ The API is available at `http://localhost:8000/api/`.
 
 ## Authentication
 
-All endpoints are public by default (no `DEFAULT_PERMISSION_CLASSES` set). JWT tokens are available if you need to lock things down:
+All product, accounting, business, setup, and report endpoints require a JWT
+access token. The token endpoints are public:
 
 ```
 POST /api/auth/token/         — obtain access + refresh tokens
@@ -74,6 +93,12 @@ POST /api/auth/token/refresh/ — refresh an access token
 ```
 
 Access tokens expire after **60 minutes**.
+
+Send the access token on every data request:
+
+```http
+Authorization: Bearer <access-token>
+```
 
 ## API Reference
 
@@ -89,6 +114,11 @@ All routes are prefixed `/api/`.
 | GET / PUT / PATCH / DELETE | `/accounting/entries/{id}/` | Retrieve / update / delete an entry |
 | POST | `/accounting/entries/{id}/void/` | Void an entry |
 
+Journal reads include a nullable `source` object for business-generated entries,
+for example `{"type": "sale", "id": 12}`. Such entries must be changed through
+their business endpoint. On journal PATCH, omitting `lines` preserves them;
+providing `lines` replaces the line set atomically.
+
 ### Products
 
 | Method | Path | Description |
@@ -100,6 +130,12 @@ All routes are prefixed `/api/`.
 | CRUD | `/products/products/` | Products |
 | GET | `/products/products/{id}/stock/` | Current stock level + movement history |
 | GET / POST | `/products/stock-adjustments/` | List / create manual stock adjustments |
+
+Cost sheets accept `material_lines` and `labor_lines`. Each line contains a
+material/labor ID and positive `qty`; line IDs, line totals, and sheet totals
+are read-only. Omitting either collection on PATCH preserves it and sending an
+empty collection clears it. Referenced catalog records return `409 Conflict`
+instead of cascading history.
 
 ### Business Operations
 
@@ -127,7 +163,8 @@ All report endpoints accept optional `?start=YYYY-MM-DD&end=YYYY-MM-DD` query pa
 
 ## Business Setup
 
-Before using any business operation endpoint, configure the `BusinessConfig` singleton by posting account IDs that map to semantic roles:
+Before using business operations, initialize the singleton. POST only needs the
+company identity; it creates and maps the standard chart of accounts:
 
 ```http
 POST /api/business/setup/
@@ -135,17 +172,26 @@ Content-Type: application/json
 
 {
   "company_name": "Acme Corp",
-  "currency": "USD",
-  "cash_account": 1,
-  "receivable_account": 2,
-  "payable_account": 3,
-  "revenue_account": 4,
-  "inventory_account": 5,
-  "expense_account": 6
+  "currency": "USD"
 }
 ```
 
-Calling any service (`create_sale`, etc.) without a configured `BusinessConfig` returns `400`.
+`GET /api/business/setup/` returns `404` until setup exists. Use PATCH with
+account IDs to remap semantic roles later. Repeating POST updates company name
+and currency but does not reset those remappings. Calling a business operation
+without setup returns `400`.
+
+Transaction amounts and quantities must be positive. Optional payment links are
+directional: received payments may link to sales and payments made may link to
+purchases. Voiding is idempotency-protected and repeated attempts return `400`.
+
+## Report behavior
+
+Summary and profit-and-loss monetary values are decimal strings such as
+`"123.45"`. Inventory `unit_cost` and `stock_value` are also decimal strings;
+`current_stock` remains an integer. Reports exclude voided journal entries,
+honor inclusive `start`/`end` filters, and retain the existing average inbound
+cost stock estimate. Sales do not automatically post cost of goods sold.
 
 ## Running Tests
 

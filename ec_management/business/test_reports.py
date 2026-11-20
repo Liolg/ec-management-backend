@@ -49,6 +49,7 @@ class TestSummaryReport:
 
     def test_all_zeros_with_no_data(self, api_client, business_config):
         response = api_client.get(SUMMARY_URL)
+        assert response.data['revenue'] == '0.00'
         assert Decimal(str(response.data['revenue']))    == Decimal('0.00')
         assert Decimal(str(response.data['expenses']))   == Decimal('0.00')
         assert Decimal(str(response.data['net_profit'])) == Decimal('0.00')
@@ -141,9 +142,9 @@ class TestProfitLossReport:
         response = api_client.get(PROFIT_LOSS_URL)
         assert response.data['revenue']  == []
         assert response.data['expenses'] == []
-        assert response.data['total_revenue']  == 0
-        assert response.data['total_expenses'] == 0
-        assert response.data['net_profit']     == 0
+        assert response.data['total_revenue']  == '0.00'
+        assert response.data['total_expenses'] == '0.00'
+        assert response.data['net_profit']     == '0.00'
 
     def test_revenue_row_per_account(self, api_client, business_config):
         p = ProductFactory()
@@ -248,5 +249,7 @@ class TestInventoryReport:
         response = api_client.get(INVENTORY_URL)
         item = next(r for r in response.data if r['product'] == p.name)
         assert item['current_stock'] == 0
+        assert item['unit_cost'] == '0.00'
+        assert item['stock_value'] == '0.00'
         assert Decimal(str(item['unit_cost']))   == Decimal('0.00')
         assert Decimal(str(item['stock_value'])) == Decimal('0.00')

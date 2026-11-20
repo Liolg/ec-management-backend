@@ -164,6 +164,26 @@ class TestVoidSale:
         response = api_client.post(void_url)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_stale_parallel_style_void_claim_creates_one_reversal(self, business_config):
+        from rest_framework.exceptions import ValidationError
+        from business.models import Sale
+        from business.services import create_sale, void_sale
+
+        product = ProductFactory()
+        sale = create_sale({
+            'product': product, 'qty': 1, 'unit_price': Decimal('10.00'),
+            'date': '2026-05-01',
+        })
+        stale_copy = Sale.objects.get(pk=sale.pk)
+
+        void_sale(sale)
+        with pytest.raises(ValidationError):
+            void_sale(stale_copy)
+
+        assert StockMovement.objects.filter(
+            product=product, reference=f'VOID-SALE-{sale.pk}',
+        ).count() == 1
+
 
 @pytest.mark.django_db
 class TestListSales:

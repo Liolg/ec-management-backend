@@ -72,54 +72,70 @@ def create_entry_lines(entry,lines_data):
             product_items_to_create.append(ProductItem(product=product, qty=qty, entry_line=line))
         created_product_items=ProductItem.objects.bulk_create(product_items_to_create)
 
+@transaction.atomic
 def update_entry(instance, data=None):
-    lines = data.pop('lines', [])
-    lines_list_to_create, lines_list_to_update = get_separated_create_update_lines(lines)
+    data = dict(data or {})
+    lines_supplied = 'lines' in data
+    lines = data.pop('lines', None)
+    entry = Entry.objects.select_for_update().get(pk=instance.pk)
 
     for attr, value in data.items():
-        setattr(instance, attr, value)
-    instance.save()
+        setattr(entry, attr, value)
+    entry.save()
 
-    with transaction.atomic():
-        bulk_update_lines = []
-        update_lines_product_items = []
-        entry = instance
-
-        for line in lines_list_to_update:
-            line_id=line.get('id')
-            ln=Line.objects.get(pk=line_id)
-            ln.entry=entry
-            ln.value=line.get('value', ln.value)
-            ln.description=line.get('description', ln.description)
-            ln.account=line.get('account', ln.account)
-            ln.type=line.get('type', ln.type)
-            bulk_update_lines.append(ln)
-            update_lines_product_items.append(line.get('product_item',None))
-
-        previous_lines=[e.id for e in entry.lines.all()]
-        create_entry_lines(entry,lines_list_to_create)
-        Line.objects.bulk_update(bulk_update_lines,['entry','account','value','description','type'])
-        updated_lines=[line.id for line in bulk_update_lines]
-        product_items_to_create=[]
-        product_items_to_edit=[]
-
-        for index  in range(len(update_lines_product_items)):
-            product_item=update_lines_product_items[index]
-            if product_item is None:
-                continue
-            if product_item.get('id'):
-                prod_it=ProductItem.objects.get(pk=product_item.get('id'))
-                prod_it.qty=product_item.get('qty',prod_it.qty)
-                product_items_to_edit.append(prod_it)
-            else:
-                product_id=product_item.get('product')
-                product=Product.objects.get(pk=product_id)
-                qty=product_item.get('qty',0)
-                line=bulk_update_lines[index]
-                product_items_to_create.append(ProductItem(product=product, qty=qty, entry_line=line))
-
-        created_product_items=ProductItem.objects.bulk_create(product_items_to_create)
-        ProductItem.objects.bulk_update(product_items_to_edit,['qty'])
-        delete_obsolete_lines(previous_lines, updated_lines)
-        entry.refresh_from_db()
+    if not lines_supplied:
         return entry
+
+    lines_list_to_create, lines_list_to_update = get_separated_create_update_lines(lines)
+    bulk_update_lines = []
+    update_lines_product_items = []
+
+    for line in lines_list_to_update:
+        line_id=line.get('id')
+        try:
+            ln=Line.objects.select_for_update().get(pk=line_id, entry=entry)
+        except Line.DoesNotExist:
+            raise ValidationError(
+                f'Line {line_id} does not belong to entry {entry.pk}.'
+            )
+        ln.value=line.get('value', ln.value)
+        ln.description=line.get('description', ln.description)
+        ln.account=line.get('account', ln.account)
+        ln.type=line.get('type', ln.type)
+        bulk_update_lines.append(ln)
+        update_lines_product_items.append(line.get('product_item',None))
+
+    previous_lines=list(entry.lines.values_list('id', flat=True))
+    create_entry_lines(entry,lines_list_to_create)
+    Line.objects.bulk_update(bulk_update_lines,['account','value','description','type'])
+    updated_lines=[line.id for line in bulk_update_lines]
+    product_items_to_create=[]
+    product_items_to_edit=[]
+
+    for index in range(len(update_lines_product_items)):
+        product_item=update_lines_product_items[index]
+        if product_item is None:
+            continue
+        line=bulk_update_lines[index]
+        if product_item.get('id'):
+            try:
+                prod_it=ProductItem.objects.get(
+                    pk=product_item.get('id'), entry_line=line,
+                )
+            except ProductItem.DoesNotExist:
+                raise ValidationError(
+                    f'Product item {product_item.get("id")} does not belong to line {line.pk}.'
+                )
+            prod_it.qty=product_item.get('qty',prod_it.qty)
+            product_items_to_edit.append(prod_it)
+        else:
+            product_id=product_item.get('product')
+            product=Product.objects.get(pk=product_id)
+            qty=product_item.get('qty',0)
+            product_items_to_create.append(ProductItem(product=product, qty=qty, entry_line=line))
+
+    ProductItem.objects.bulk_create(product_items_to_create)
+    ProductItem.objects.bulk_update(product_items_to_edit,['qty'])
+    delete_obsolete_lines(previous_lines, updated_lines)
+    entry.refresh_from_db()
+    return entry

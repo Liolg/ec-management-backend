@@ -1,3 +1,4 @@
+from decimal import Decimal
 from rest_framework import serializers
 from ec_accounts.models import Account
 from ec_accounts.serializers import AccountSerializer
@@ -62,7 +63,7 @@ class SaleSerializer(serializers.ModelSerializer):
 class SaleCreateSerializer(serializers.Serializer):
     product        = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
     qty            = serializers.IntegerField(min_value=1)
-    unit_price     = serializers.DecimalField(max_digits=18, decimal_places=2, required=False, allow_null=True, default=None)
+    unit_price     = serializers.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal('0.01'), required=False, allow_null=True, default=None)
     date           = serializers.DateField()
     customer_name  = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
     payment_method = serializers.ChoiceField(choices=PAYMENT_CHOICES, default='cash')
@@ -86,7 +87,7 @@ class PurchaseSerializer(serializers.ModelSerializer):
 class PurchaseCreateSerializer(serializers.Serializer):
     product        = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
     qty            = serializers.IntegerField(min_value=1)
-    unit_cost      = serializers.DecimalField(max_digits=18, decimal_places=2)
+    unit_cost      = serializers.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal('0.01'))
     date           = serializers.DateField()
     supplier_name  = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
     payment_method = serializers.ChoiceField(choices=PAYMENT_CHOICES, default='cash')
@@ -105,7 +106,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
 class ExpenseCreateSerializer(serializers.Serializer):
     description    = serializers.CharField(max_length=200)
     category       = serializers.ChoiceField(choices=Expense.CATEGORY_CHOICES, default='other')
-    amount         = serializers.DecimalField(max_digits=18, decimal_places=2)
+    amount         = serializers.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal('0.01'))
     date           = serializers.DateField()
     payment_method = serializers.ChoiceField(choices=PAYMENT_CHOICES, default='cash')
 
@@ -125,11 +126,23 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 class PaymentCreateSerializer(serializers.Serializer):
     direction         = serializers.ChoiceField(choices=Payment.DIRECTION_CHOICES)
-    amount            = serializers.DecimalField(max_digits=18, decimal_places=2)
+    amount            = serializers.DecimalField(max_digits=18, decimal_places=2, min_value=Decimal('0.01'))
     date              = serializers.DateField()
     counterparty_name = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
     related_sale      = serializers.PrimaryKeyRelatedField(queryset=Sale.objects.all(), required=False, allow_null=True, default=None)
     related_purchase  = serializers.PrimaryKeyRelatedField(queryset=Purchase.objects.all(), required=False, allow_null=True, default=None)
+
+    def validate(self, data):
+        direction = data.get('direction')
+        if direction == Payment.DIRECTION_RECEIVED and data.get('related_purchase'):
+            raise serializers.ValidationError({
+                'related_purchase': 'Received payments can only be linked to sales.',
+            })
+        if direction == Payment.DIRECTION_MADE and data.get('related_sale'):
+            raise serializers.ValidationError({
+                'related_sale': 'Payments made can only be linked to purchases.',
+            })
+        return data
 
 
 # ---------------------------------------------------------------------------

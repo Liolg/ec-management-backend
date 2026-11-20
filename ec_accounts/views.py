@@ -1,3 +1,4 @@
+from django.db.models.deletion import ProtectedError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -9,9 +10,43 @@ class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all()
     serializer_class = AccountSerializer
 
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {'detail': 'Account cannot be deleted because it is referenced.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
 
 class EntryViewSet(viewsets.ModelViewSet):
-    queryset = Entry.objects.prefetch_related('lines__account').all()
+    queryset = Entry.objects.select_related(
+        'sale', 'purchase', 'expense', 'payment',
+    ).prefetch_related('lines__account').all()
+
+    @staticmethod
+    def _is_generated(entry):
+        return any(
+            getattr(entry, source_type, None) is not None
+            for source_type in ('sale', 'purchase', 'expense', 'payment')
+        )
+
+    def _generated_conflict(self):
+        return Response(
+            {'detail': 'Transaction-generated entries must be changed through the business API.'},
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    def update(self, request, *args, **kwargs):
+        if self._is_generated(self.get_object()):
+            return self._generated_conflict()
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if self._is_generated(self.get_object()):
+            return self._generated_conflict()
+        return super().destroy(request, *args, **kwargs)
 
     def get_serializer_class(self):
         if self.action in ['list', 'retrieve']:
@@ -40,6 +75,8 @@ class EntryViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def void(self, request, pk=None):
         entry = self.get_object()
+        if self._is_generated(entry):
+            return self._generated_conflict()
         entry.voided = True
-        entry.save()
+        entry.save(update_fields=['voided', 'last_modified_at'])
         return Response({'status': 'voided'})

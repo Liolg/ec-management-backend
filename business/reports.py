@@ -4,6 +4,10 @@ from ec_accounts.models import Line
 from products.models import Product, StockMovement
 
 
+def decimal_string(value):
+    return format(Decimal(value).quantize(Decimal('0.01')), 'f')
+
+
 def _line_sum(filters):
     result = Line.objects.filter(**filters).aggregate(total=Sum('value'))['total']
     return result or Decimal('0.00')
@@ -82,7 +86,7 @@ def get_inventory_report():
         result.append({
             'product':       product.name,
             'current_stock': current_stock,
-            'unit_cost':     round(avg_unit_cost, 2),
-            'stock_value':   round(current_stock * avg_unit_cost, 2),
+            'unit_cost':     decimal_string(avg_unit_cost),
+            'stock_value':   decimal_string(current_stock * avg_unit_cost),
         })
     return result

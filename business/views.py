@@ -44,7 +44,9 @@ class SetupView(APIView):
         serializer.is_valid(raise_exception=True)
         for attr, value in serializer.validated_data.items():
             setattr(config, attr, value)
-        config.save()
+        if serializer.validated_data:
+            config.save(update_fields=serializer.validated_data.keys())
+            config.refresh_from_db()
         return Response(BusinessConfigSerializer(config).data)
 
 
@@ -154,12 +156,12 @@ class ReportSummaryView(APIView):
 
         return Response({
             'period':       {'start': str(start) if start else None, 'end': str(end) if end else None},
-            'revenue':      revenue,
-            'expenses':     expenses,
-            'net_profit':   revenue - expenses,
-            'cash_balance': reports.get_account_balance(config.cash_account       if config else None),
-            'receivables':  reports.get_account_balance(config.receivable_account if config else None),
-            'payables':     reports.get_credit_balance(config.payable_account     if config else None),
+            'revenue':      reports.decimal_string(revenue),
+            'expenses':     reports.decimal_string(expenses),
+            'net_profit':   reports.decimal_string(revenue - expenses),
+            'cash_balance': reports.decimal_string(reports.get_account_balance(config.cash_account       if config else None)),
+            'receivables':  reports.decimal_string(reports.get_account_balance(config.receivable_account if config else None)),
+            'payables':     reports.decimal_string(reports.get_credit_balance(config.payable_account     if config else None)),
         })
 
 
@@ -178,11 +180,11 @@ class ReportProfitLossView(APIView):
 
         return Response({
             'period':         {'start': str(start) if start else None, 'end': str(end) if end else None},
-            'revenue':        [{'account': r['account__name'], 'amount': r['amount']} for r in revenue_rows],
-            'total_revenue':  total_revenue,
-            'expenses':       [{'account': r['account__name'], 'amount': r['amount']} for r in expenses_rows],
-            'total_expenses': total_expenses,
-            'net_profit':     total_revenue - total_expenses,
+            'revenue':        [{'account': r['account__name'], 'amount': reports.decimal_string(r['amount'])} for r in revenue_rows],
+            'total_revenue':  reports.decimal_string(total_revenue),
+            'expenses':       [{'account': r['account__name'], 'amount': reports.decimal_string(r['amount'])} for r in expenses_rows],
+            'total_expenses': reports.decimal_string(total_expenses),
+            'net_profit':     reports.decimal_string(total_revenue - total_expenses),
         })
 
 
